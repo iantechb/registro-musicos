@@ -1,0 +1,61 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Avance · Registro de Música MPN</title>
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#f7f5f8;color:#1f1a24}
+.w{max-width:900px;margin:auto;padding:16px}h1{color:#5e2a5a;font-size:1.4rem}
+.c{background:#fff;border:1px solid #e2dce6;border-radius:10px;padding:14px;margin:12px 0}
+.s{display:flex;flex-wrap:wrap;gap:8px}.s span{background:#f1e6ef;border-radius:8px;padding:6px 10px}
+table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{padding:6px;border-bottom:1px solid #eee;text-align:left}
+tr.r td{background:#f1e6ef;font-weight:700;color:#5e2a5a}.n{text-align:right}
+.si{color:#2f6b4f;font-weight:700}.no{color:#9a3b2b;font-weight:700}
+input,select,button{font:inherit;padding:8px;border:1px solid #ccc;border-radius:8px}button{background:#5e2a5a;color:#fff;border:0}
+.t{overflow-x:auto}
+</style></head><body><div class="w">
+<h1>Avance del Registro de Música · MPN</h1>
+<div class="c" id="login"><p>Escribe la clave para ver el avance:</p>
+<input id="clave" type="password"> <button id="entrar">Entrar</button> <span id="msg"></span></div>
+<div id="panel" hidden>
+<div class="c"><div class="s" id="stats"></div>
+<p><select id="fr"></select> <button id="act">Actualizar</button> <small id="hora"></small></p></div>
+<div class="c t"><h2>Avance por distrito</h2><p id="res"></p><table id="av"></table></div>
+<div class="c t"><h2>Personas autorizadas</h2><input id="q" placeholder="Buscar nombre, iglesia o grupo" style="width:100%">
+<table id="lista"></table></div></div></div>
+<script>
+const URL_HOJA="https://script.google.com/macros/s/AKfycbz3xHLd9-2DHN8zUJKP4pQs3JvyrAi1y-TC2tkP3uKSKxXHZLJi1OcncJZuHTdUPK5pSg/exec";
+const REG={"BAGUA":["Bagua A","Bagua B","Imaza","Utcubamba A","Utcubamba B","Utcubamba C","Utcubamba D"],
+"JAÉN":["Jaén A","Jaén B","Jaén C","Jaén D","San Ignacio A","San Ignacio B","San Ignacio C","San Ignacio D","San Ignacio E"],
+"CAJAMARCA":["Cutervo Norte","Cutervo Sur","Santa Cruz \"A\"","Santa Cruz \"B\"","Santa Cruz \"C\"","Udima"],
+"CHICLAYO NORTE":["Jayanca","J. L. O. Atusparias","J. L. O. Centro","J. L. O. El Dorado \"A\"","J. L. O. El Dorado \"B\"","J. L. O. Roma","Lambayeque","Olmos"],
+"CHICLAYO CENTRO":["Chiclayo Central","Chiclayo Primavera","Chiclayo San Antonio","Chiclayo Satélite \"A\"","Chiclayo Satélite \"B\"","Ferreñafe","Pátapo"],
+"CHICLAYO SUR":["Cayaltí","Chiclayo Santa Victoria","La Victoria \"A\"","La Victoria \"B\""],
+"BAJO PIURA":["Castilla \"A\"","Castilla \"B\"","Chulucanas","Huancabamba","Sechura"],
+"ALTO PIURA":["Las Lomas","Paita","Piura \"A\"","Piura \"B\"","Piura \"C\"","Piura \"D\"","Sullana"],
+"TUMBES":["Talara","Tumbes \"A\"","Tumbes \"B\""]};
+let filas=[];const $=i=>document.getElementById(i);
+const e=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+$("fr").innerHTML='<option value="">Todas las regiones</option>'+Object.keys(REG).map(r=>`<option>${r}</option>`).join("");
+async function cargar(){
+ $("msg").textContent="Cargando…";
+ try{const r=await fetch(URL_HOJA+"?clave="+encodeURIComponent($("clave").value));const j=await r.json();
+  if(!j.ok){$("msg").textContent="Clave incorrecta.";return;}
+  localStorage.setItem("claveMPN",$("clave").value);
+  filas=j.filas.slice(1).filter(f=>f[9]);$("login").hidden=true;$("panel").hidden=false;
+  $("hora").textContent="Actualizado: "+new Date().toLocaleTimeString();pintar();
+ }catch(x){$("msg").textContent="No se pudo conectar. Revisa tu internet.";}}
+function pintar(){
+ const R=$("fr").value,q=$("q").value.toLowerCase();
+ const fs=filas.filter(f=>!R||f[1]===R);
+ const grupos=new Set(fs.map(f=>f[0]+"|"+f[6]+"|"+f[3]));
+ $("stats").innerHTML=`<span><b>${grupos.size}</b> agrupaciones/solistas</span><span><b>${fs.length}</b> personas</span>`;
+ let h="<tr><th>Distrito</th><th>Pastor</th><th class=n>Grupos</th><th class=n>Personas</th><th>Estado</th></tr>",ok=0,tot=0;
+ for(const reg in REG){if(R&&reg!==R)continue;h+=`<tr class=r><td colspan=5>${reg}</td></tr>`;
+  for(const d of REG[reg]){const x=fs.filter(f=>f[1]===reg&&f[2]===d);const g=new Set(x.map(f=>f[0]+"|"+f[6]+"|"+f[3])).size;
+   tot++;if(x.length)ok++;
+   h+=`<tr><td>${e(d)}</td><td>${e(x[0]?.[4]||"")}</td><td class=n>${g}</td><td class=n>${x.length}</td><td>${x.length?'<span class=si>Registró</span>':'<span class=no>Pendiente</span>'}</td></tr>`;}}
+ $("av").innerHTML=h;$("res").textContent=`${ok} de ${tot} distritos ya registraron.`;
+ const l=fs.filter(f=>!q||f.join(" ").toLowerCase().includes(q));
+ $("lista").innerHTML="<tr><th>Integrante</th><th>Grupo</th><th>Tipo</th><th>Iglesia</th><th>Distrito</th><th>Celular</th></tr>"+
+  l.map(f=>`<tr><td>${e(f[9])}${f[10]?" · "+e(f[10]):""}</td><td>${e(f[6])}</td><td>${e(f[5])}</td><td>${e(f[11]||f[3])}</td><td>${e(f[2])}</td><td>${e(f[8])}</td></tr>`).join("");}
+$("entrar").onclick=cargar;$("act").onclick=cargar;$("fr").onchange=pintar;$("q").oninput=pintar;
+const g=localStorage.getItem("claveMPN");if(g){$("clave").value=g;cargar();}
+</script></body></html>
